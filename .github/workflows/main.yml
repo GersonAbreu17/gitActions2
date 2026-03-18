@@ -1,4 +1,4 @@
-name: Publicação automática
+name: Publicação automática com backup
 
 on:  
   push:
@@ -32,12 +32,18 @@ jobs:
       - name: Criar pasta no servidor
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
-          "sudo mkdir -p /home/ubuntu/publish"
+          "sudo mkdir -p /home/ubuntu/publish /home/ubuntu/backups"
+
+      - name: Fazer backup da aplicação atual
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
+          "if [ -d /home/ubuntu/publish ]; then sudo cp -r /home/ubuntu/publish /home/ubuntu/backups/publish_$TIMESTAMP; fi"
 
       - name: Ajustar permissões
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
-          "sudo chown -R ubuntu:ubuntu /home/ubuntu/publish && sudo chmod -R 755 /home/ubuntu/publish"
+          "sudo chown -R ubuntu:ubuntu /home/ubuntu/publish /home/ubuntu/backups && sudo chmod -R 755 /home/ubuntu/publish /home/ubuntu/backups"
 
       - name: Enviar aplicação compilada
         run: |
