@@ -50,3 +50,10 @@ jobs:
 
       - name: Remover chave privada
         run: rm /tmp/private_key
+
+      - name: Notificar no Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{"content":"🚀 Deploy concluído! <@732944277461532753>"}' \
+          ${{ secrets.DISCORD_WEBHOOK }}
