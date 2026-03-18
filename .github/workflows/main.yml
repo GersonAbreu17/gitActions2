@@ -1,0 +1,52 @@
+name: Publicação automática
+
+on:  
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Instala o .NET no container do GitHub Actions
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.303'
+
+      - name: Restaurar dependências
+        run: dotnet restore
+
+      - name: Publicar aplicação para Linux
+        run: dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+
+      - name: Criar chave privada
+        run: |
+          echo "${{ secrets.KEY }}" > /tmp/private_key
+          chmod 600 /tmp/private_key
+
+      - name: Criar pasta no servidor
+        run: |
+          ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
+          "sudo mkdir -p /home/ubuntu/publish"
+
+      - name: Ajustar permissões
+        run: |
+          ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
+          "sudo chown -R ubuntu:ubuntu /home/ubuntu/publish && sudo chmod -R 755 /home/ubuntu/publish"
+
+      - name: Enviar aplicação compilada
+        run: |
+          scp -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r ./publish/* ubuntu@${{ secrets.HOST }}:/home/ubuntu/publish
+
+      - name: Reiniciar serviço
+        run: |
+          ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${{ secrets.HOST }} \
+          "sudo systemctl restart webapp1.service"
+
+      - name: Remover chave privada
+        run: rm /tmp/private_key
